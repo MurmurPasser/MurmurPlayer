@@ -34,7 +34,9 @@ targets:
     dependencies:
       - package: KSPlayer
       - package: AMSMB2
-    scheme: {}
+    scheme:
+      testTargets:
+        - MurmurPlayerTests
     info:
       path: Sources/Info.plist
       properties:
@@ -80,3 +82,16 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         DEAD_CODE_STRIPPING: YES
         CODE_SIGN_STYLE: Automatic
+
+  MurmurPlayerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: MurmurPlayer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.murmur.player.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
