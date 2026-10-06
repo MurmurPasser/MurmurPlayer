@@ -41,7 +41,8 @@ final class PlaybackRouter: ObservableObject {
     }
 
     func playRemote(_ url: URL) {
-        let source = PlaybackSource.remote(url: url.absoluteString)
+        // El historial guarda la URL sin contraseña; la contraseña va al llavero.
+        let source = PlaybackSource.remote(url: RemoteCredentials.storeAndStrip(url).absoluteString)
         play(PlayRequest(url: url,
                          title: url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent,
                          historyKey: Self.historyKey(for: source, fallbackURL: url),
@@ -98,7 +99,7 @@ final class PlaybackRouter: ObservableObject {
             play(request)
 
         case let .remote(string):
-            guard let url = URL(string: string) else { return }
+            guard let url = RemoteCredentials.restore(string) else { return }
             var request = PlayRequest(url: url, title: entry.title, historyKey: entry.key, source: entry.source)
             request.forceStartAtZero = fromStart
             play(request)
@@ -114,6 +115,44 @@ final class PlaybackRouter: ObservableObject {
         case .bookmark: return "file://" + fallbackURL.standardizedFileURL.path
         case let .remote(url): return url
         }
+    }
+}
+
+/// Contraseñas escritas a mano en «Abrir URL» (smb://usuario:clave@…):
+/// se guardan en el llavero, nunca dentro del historial.
+enum RemoteCredentials {
+    private static func account(for url: String) -> String { "remote:" + url }
+
+    /// La misma URL sin contraseña.
+    static func strip(_ url: URL) -> URL {
+        guard url.password != nil, var c = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        c.password = nil
+        return c.url ?? url
+    }
+
+    /// Guarda la contraseña (si hay) en el llavero y devuelve la URL sin ella.
+    static func storeAndStrip(_ url: URL) -> URL {
+        let clean = strip(url)
+        // URLComponents da la contraseña ya decodificada, igual que la espera restore().
+        if let password = URLComponents(url: url, resolvingAgainstBaseURL: false)?.password, !password.isEmpty {
+            Keychain.set(password, account: account(for: clean.absoluteString))
+        }
+        return clean
+    }
+
+    /// URL lista para reproducir: vuelve a poner la contraseña guardada.
+    static func restore(_ string: String) -> URL? {
+        guard let url = URL(string: string) else { return nil }
+        guard url.password == nil, url.user != nil,
+              let password = Keychain.get(account: account(for: string)),
+              var c = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return url }
+        c.password = password
+        return c.url ?? url
+    }
+
+    static func delete(for string: String) {
+        Keychain.delete(account: account(for: string))
     }
 }
 

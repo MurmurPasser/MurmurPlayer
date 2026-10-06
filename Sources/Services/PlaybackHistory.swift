@@ -60,13 +60,19 @@ final class PlaybackHistory: ObservableObject {
     }
 
     func remove(key: String) {
+        if let entry = entries[key] { forgetCredentials(of: entry) }
         entries[key] = nil
         save()
     }
 
     func clear() {
+        entries.values.forEach(forgetCredentials)
         entries = [:]
         save()
+    }
+
+    private func forgetCredentials(of entry: HistoryEntry) {
+        if case let .remote(url) = entry.source { RemoteCredentials.delete(for: url) }
     }
 
     private func trimIfNeeded() {
@@ -80,6 +86,25 @@ final class PlaybackHistory: ObservableObject {
               let decoded = try? JSONDecoder().decode([String: HistoryEntry].self, from: data)
         else { return }
         entries = decoded
+        migrateRemotePasswords()
+    }
+
+    /// Versiones anteriores guardaban «Abrir URL» con la contraseña dentro.
+    /// La pasa al llavero y vuelve a guardar el historial sin ella.
+    private func migrateRemotePasswords() {
+        var changed = false
+        for (key, entry) in entries {
+            guard case let .remote(string) = entry.source,
+                  let url = URL(string: string), url.password != nil
+            else { continue }
+            let clean = RemoteCredentials.storeAndStrip(url).absoluteString
+            entries[key] = nil
+            entries[clean] = HistoryEntry(key: clean, title: entry.title, source: .remote(url: clean),
+                                          position: entry.position, duration: entry.duration,
+                                          updatedAt: entry.updatedAt)
+            changed = true
+        }
+        if changed { save() }
     }
 
     private func save() {
