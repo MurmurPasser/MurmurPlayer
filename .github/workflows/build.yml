@@ -52,6 +52,26 @@ jobs:
             -scheme MurmurPlayer \
             -clonedSourcePackagesDirPath build/SourcePackages
 
+      - name: Pruebas unitarias (simulador)
+        run: |
+          set -o pipefail
+          # Primer iPhone disponible en el simulador de la imagen (los nombres cambian entre versiones de Xcode).
+          SIM_ID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for runtime, items in devices.items() if "iOS" in runtime
+                     for d in items if d["name"].startswith("iPhone")))')
+          xcodebuild test \
+            -project MurmurPlayer.xcodeproj \
+            -scheme MurmurPlayer \
+            -destination "id=$SIM_ID" \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            -derivedDataPath build/DerivedDataTests \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcbeautify --renderer github-actions
+
       - name: Compilar (Release, iphoneos, sin firma)
         run: |
           set -o pipefail
