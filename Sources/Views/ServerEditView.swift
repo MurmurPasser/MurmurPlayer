@@ -18,6 +18,7 @@ struct ServerEditView: View {
     @State private var testing = false
     @State private var testResult: (ok: Bool, text: String)?
     @State private var availableShares: [String] = []
+    @State private var passwordNotSaved = false
 
     init(server: SMBServer?, onSave: @escaping (SMBServer) -> Void) {
         original = server
@@ -126,12 +127,17 @@ struct ServerEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Guardar") {
                         let server = draft
-                        ServerStore.shared.upsert(server, password: password)
+                        let saved = ServerStore.shared.upsert(server, password: password)
                         onSave(server)
-                        dismiss()
+                        if saved { dismiss() } else { passwordNotSaved = true }
                     }
                     .disabled(!canSave)
                 }
+            }
+            .alert("No se pudo guardar la contraseña", isPresented: $passwordNotSaved) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text("El servidor quedó guardado, pero el llavero del dispositivo rechazó la contraseña. Vuelve a escribirla más tarde en «Editar servidor».")
             }
             .onAppear { if original == nil { discovery.start() } }
             .onDisappear { discovery.stop() }

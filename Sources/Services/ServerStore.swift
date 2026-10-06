@@ -13,14 +13,17 @@ enum Keychain {
         ]
     }
 
-    static func set(_ value: String, account: String) {
+    /// Devuelve false si el llavero rechazó la contraseña.
+    @discardableResult
+    static func set(_ value: String, account: String) -> Bool {
         let query = baseQuery(account)
         SecItemDelete(query as CFDictionary)
-        guard !value.isEmpty else { return }
+        guard !value.isEmpty else { return true }
         var add = query
         add[kSecValueData as String] = Data(value.utf8)
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(add as CFDictionary, nil)
+        // ThisDeviceOnly: la contraseña no viaja en copias de seguridad ni a otro dispositivo.
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
     }
 
     static func get(account: String) -> String? {
@@ -31,6 +34,24 @@ enum Keychain {
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         guard status == errSecSuccess, let data = item as? Data else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+
+    /// Las versiones anteriores guardaban con `AfterFirstUnlock` (entra en copias de seguridad).
+    /// Pasa todas las contraseñas de la app a `ThisDeviceOnly`; se ejecuta una sola vez.
+    static func migrateToThisDeviceOnly() {
+        let flag = "mp.keychain.thisDeviceOnly"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        let attributes: [String: Any] = [
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]
+        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if status == errSecSuccess || status == errSecItemNotFound {
+            UserDefaults.standard.set(true, forKey: flag)
+        }
     }
 
     static func delete(account: String) {
@@ -45,6 +66,7 @@ final class ServerStore: ObservableObject {
     private let storageKey = "mp.servers.v1"
 
     private init() {
+        Keychain.migrateToThisDeviceOnly()
         load()
     }
 
@@ -57,20 +79,25 @@ final class ServerStore: ObservableObject {
     }
 
     /// `password == nil` deja la contraseña guardada tal como estaba.
-    func upsert(_ server: SMBServer, password: String?) {
+    /// Devuelve false si el servidor se guardó pero la contraseña no.
+    @discardableResult
+    func upsert(_ server: SMBServer, password: String?) -> Bool {
         if let index = servers.firstIndex(where: { $0.id == server.id }) {
             servers[index] = server
         } else {
             servers.append(server)
         }
+        var passwordSaved = true
         if let password {
-            Keychain.set(password, account: server.id.uuidString)
+            passwordSaved = Keychain.set(password, account: server.id.uuidString)
         }
         save()
+        return passwordSaved
     }
 
     func delete(_ server: SMBServer) {
         Keychain.delete(account: server.id.uuidString)
+        PlaybackHistory.shared.removeEntries(forServer: server.id)
         servers.removeAll { $0.id == server.id }
         save()
     }
