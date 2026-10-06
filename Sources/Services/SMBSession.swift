@@ -116,7 +116,14 @@ final class SMBSession: @unchecked Sendable {
 
 /// Descarga los subtítulos de texto que acompañan a un video en la misma carpeta
 /// (Pelicula.srt, Pelicula.es.srt, Pelicula.forced.ass…). FFmpeg ya lee los embebidos.
+/// Las descargas van en paralelo y con tiempo límite: un NAS lento no debe retrasar el video.
 enum SubtitleFetcher {
+    static let timeout: UInt64 = 8_000_000_000 // 8 s
+
+    private static var rootDirectory: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("subs", isDirectory: true)
+    }
+
     static func siblings(for video: SMBEntry, in entries: [SMBEntry], session: SMBSession, share: String) async -> [URL] {
         let base = (video.name as NSString).deletingPathExtension.lowercased()
         let candidates = entries.filter {
@@ -125,21 +132,67 @@ enum SubtitleFetcher {
         }.prefix(8)
         guard !candidates.isEmpty else { return [] }
 
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("subs", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        // Solo se reproduce un video a la vez: los subtítulos de reproducciones anteriores sobran.
+        try? FileManager.default.removeItem(at: rootDirectory)
+        let dir = rootDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        var result: [URL] = []
-        for candidate in candidates {
-            let destination = dir.appendingPathComponent(candidate.name)
-            do {
-                try await session.download(share: share, path: candidate.path, to: destination)
-                result.append(destination)
-            } catch {
-                continue
+        let collected = Collected()
+        let work = Task {
+            await withTaskGroup(of: Void.self) { group in
+                for candidate in candidates {
+                    group.addTask {
+                        let destination = dir.appendingPathComponent(candidate.name)
+                        if (try? await session.download(share: share, path: candidate.path, to: destination)) != nil {
+                            collected.append(destination)
+                        }
+                    }
+                }
             }
         }
-        return result
+        await waitForFirst(work, timeout: timeout)
+        work.cancel()
+        return collected.urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    /// Vuelve cuando termina `work` o cuando vence el tiempo, lo que ocurra primero.
+    private static func waitForFirst(_ work: Task<Void, Never>, timeout: UInt64) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = Once()
+            Task {
+                await work.value
+                if once.claim() { continuation.resume() }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: timeout)
+                if once.claim() { continuation.resume() }
+            }
+        }
+    }
+
+    private final class Collected: @unchecked Sendable {
+        private let lock = NSLock()
+        private var items: [URL] = []
+
+        func append(_ url: URL) {
+            lock.lock(); items.append(url); lock.unlock()
+        }
+
+        var urls: [URL] {
+            lock.lock(); defer { lock.unlock() }
+            return items
+        }
+    }
+
+    private final class Once: @unchecked Sendable {
+        private let lock = NSLock()
+        private var done = false
+
+        func claim() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if done { return false }
+            done = true
+            return true
+        }
     }
 }
