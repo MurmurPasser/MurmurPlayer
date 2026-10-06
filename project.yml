@@ -19,9 +19,10 @@ packages:
     url: https://github.com/kingslay/KSPlayer.git
     revision: be7f60d3b94a0941c643fe8699113cfce4f08e83
   # Cliente SMB2/3 para navegar carpetas y bajar subtítulos.
+  # Fijado al commit del tag 4.0.3 (mismo motivo que KSPlayer).
   AMSMB2:
     url: https://github.com/amosavian/AMSMB2.git
-    from: 4.0.3
+    revision: 1726aaaf7adf63d7d1d2a0c5d1b0e635028215c0
 
 targets:
   MurmurPlayer:
