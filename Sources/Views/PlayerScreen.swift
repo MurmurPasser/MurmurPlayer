@@ -131,6 +131,12 @@ struct PlayerScreen: View {
 
     private static func describe(_ error: Error, url: URL) -> String {
         var message = error.localizedDescription
+        // La URL de SMB lleva la contraseña; no debe aparecer si el error la incluye.
+        if let password = url.password, !password.isEmpty {
+            for secret in Set([password, password.removingPercentEncoding ?? password]) {
+                message = message.replacingOccurrences(of: secret, with: "••••")
+            }
+        }
         if url.scheme?.lowercased() == "smb" {
             message += "\n\nSi es un archivo del NAS, revisa que el usuario tenga permiso de lectura y que el servidor permita SMB2/3."
         } else if PlayerSettings.engine == .avplayer {
