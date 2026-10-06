@@ -17,16 +17,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Imagen y Xcode fijos: «latest» puede cambiar y romper el build sin tocar código.
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Seleccionar Xcode estable
+      - name: Seleccionar Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.6'
 
       - name: Metal Toolchain (Xcode 26 lo instala aparte; KSPlayer compila shaders)
         run: xcodebuild -downloadComponent MetalToolchain || echo "No requerido en esta versión de Xcode"
