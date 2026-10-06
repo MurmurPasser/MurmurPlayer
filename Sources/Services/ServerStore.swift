@@ -97,6 +97,7 @@ final class ServerStore: ObservableObject {
 
     func delete(_ server: SMBServer) {
         Keychain.delete(account: server.id.uuidString)
+        PlaybackHistory.shared.removeEntries(forServer: server.id)
         servers.removeAll { $0.id == server.id }
         save()
     }

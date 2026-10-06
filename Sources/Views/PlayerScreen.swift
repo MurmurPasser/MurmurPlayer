@@ -81,7 +81,8 @@ struct PlayerScreen: View {
             if Date().timeIntervalSince(tracker.lastCommit) > 10 {
                 tracker.lastCommit = Date()
                 PlaybackHistory.shared.record(key: request.historyKey, title: request.title,
-                                              source: request.source, position: current, duration: total)
+                                              source: request.source, position: current, duration: total,
+                                              persist: false)
             }
             if !tracker.audioPreferenceDone, let player = playerCoordinator?.playerLayer?.player {
                 Self.applyAudioPreference(player: player, tracker: tracker)

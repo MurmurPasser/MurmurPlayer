@@ -93,7 +93,13 @@ final class PlaybackRouter: ObservableObject {
                 return
             }
             let scoped = url.startAccessingSecurityScopedResource()
-            var request = PlayRequest(url: url, title: entry.title, historyKey: entry.key, source: entry.source)
+            var source = entry.source
+            // Un bookmark vencido todavía abre, pero hay que renovarlo o dejará de funcionar.
+            if stale, let fresh = try? url.bookmarkData() {
+                source = .bookmark(data: fresh, name: url.lastPathComponent)
+                PlaybackHistory.shared.updateSource(key: entry.key, source: source)
+            }
+            var request = PlayRequest(url: url, title: entry.title, historyKey: entry.key, source: source)
             request.securityScopedURL = scoped ? url : nil
             request.forceStartAtZero = fromStart
             play(request)
