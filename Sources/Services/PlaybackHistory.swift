@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Posiciones de reproducción para "Continuar viendo" y reanudar.
 /// Solo publica cambios cuando se confirma una posición (cada ~10 s), no en cada fotograma,
@@ -9,9 +10,17 @@ final class PlaybackHistory: ObservableObject {
     @Published private(set) var entries: [String: HistoryEntry] = [:]
     private let storageKey = "mp.history.v1"
     private let maxEntries = 300
+    /// Durante la reproducción se guarda en disco como mucho cada 60 s (en memoria, cada 10 s).
+    private let persistInterval: TimeInterval = 60
+    private var lastPersist = Date.distantPast
 
     private init() {
         load()
+        // Si la app pasa a segundo plano o se cierra, no perder lo que quedó solo en memoria.
+        NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.save()
+        }
     }
 
     var recent: [HistoryEntry] {
@@ -28,7 +37,9 @@ final class PlaybackHistory: ObservableObject {
         return e.position
     }
 
-    func record(key: String, title: String, source: PlaybackSource, position: Double, duration: Double) {
+    /// `persist: false` actualiza la memoria y solo escribe en disco si pasó `persistInterval`.
+    func record(key: String, title: String, source: PlaybackSource, position: Double, duration: Double,
+                persist: Bool = true) {
         guard position.isFinite, duration.isFinite, duration > 0 else { return }
         var e = entries[key] ?? HistoryEntry(key: key, title: title, source: source, position: 0, duration: duration, updatedAt: Date())
         e.title = title
@@ -38,7 +49,27 @@ final class PlaybackHistory: ObservableObject {
         e.updatedAt = Date()
         entries[key] = e
         trimIfNeeded()
+        if persist || Date().timeIntervalSince(lastPersist) > persistInterval {
+            save()
+        }
+    }
+
+    /// Reemplaza el origen guardado (p. ej. un bookmark renovado) sin tocar el progreso.
+    func updateSource(key: String, source: PlaybackSource) {
+        guard var e = entries[key] else { return }
+        e.source = source
+        entries[key] = e
         save()
+    }
+
+    /// Al borrar un servidor, sus entradas ya no se pueden reproducir.
+    func removeEntries(forServer serverID: UUID) {
+        let before = entries.count
+        entries = entries.filter { _, entry in
+            if case let .smb(id, _, _) = entry.source { return id != serverID }
+            return true
+        }
+        if entries.count != before { save() }
     }
 
     func markFinished(key: String) {
@@ -78,6 +109,7 @@ final class PlaybackHistory: ObservableObject {
     private func trimIfNeeded() {
         guard entries.count > maxEntries else { return }
         let keep = Set(recent.prefix(maxEntries).map(\.key))
+        entries.values.filter { !keep.contains($0.key) }.forEach(forgetCredentials)
         entries = entries.filter { keep.contains($0.key) }
     }
 
@@ -108,6 +140,7 @@ final class PlaybackHistory: ObservableObject {
     }
 
     private func save() {
+        lastPersist = Date()
         if let data = try? JSONEncoder().encode(entries) {
             UserDefaults.standard.set(data, forKey: storageKey)
         }
