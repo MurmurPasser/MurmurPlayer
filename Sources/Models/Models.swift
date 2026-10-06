@@ -87,7 +87,11 @@ struct HistoryEntry: Codable, Identifiable, Hashable {
     }
 
     var isFinished: Bool {
-        duration > 0 && (position >= duration * 0.95 || duration - position < 45)
+        guard duration > 0 else { return false }
+        if position >= duration * 0.95 { return true }
+        // Los últimos 45 s (créditos) solo cuentan en videos largos; en clips
+        // cortos marcarían como visto algo apenas empezado.
+        return duration >= 600 && duration - position < 45
     }
 }
 
