@@ -79,7 +79,7 @@ final class PlaybackRouter: ObservableObject {
         case let .documents(relativePath):
             let url = LocalFiles.documentsURL.appendingPathComponent(relativePath)
             guard FileManager.default.fileExists(atPath: url.path) else {
-                alertMessage = "El archivo ya no existe en el iPad."
+                alertMessage = "El archivo ya no existe en este dispositivo."
                 return
             }
             var request = PlayRequest(url: url, title: entry.title, historyKey: entry.key, source: entry.source)

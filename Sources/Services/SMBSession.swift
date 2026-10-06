@@ -29,7 +29,7 @@ enum SMBError: LocalizedError {
             case .EACCES, .EPERM, .EAUTH:
                 return "Acceso denegado. Revisa el usuario y la contraseña."
             case .ECONNREFUSED, .ETIMEDOUT, .EHOSTUNREACH, .ENETUNREACH, .EHOSTDOWN, .ECONNRESET:
-                return "No se pudo conectar al servidor. Verifica la IP, que el iPad esté en la misma red y que Murmur Player tenga permiso de Red local (Ajustes › Privacidad y seguridad › Red local)."
+                return "No se pudo conectar al servidor. Verifica la IP, que el dispositivo esté en la misma red y que Murmur Player tenga permiso de Red local (Ajustes › Privacidad y seguridad › Red local)."
             case .ENOENT:
                 return "La carpeta o el recurso compartido no existe."
             default:

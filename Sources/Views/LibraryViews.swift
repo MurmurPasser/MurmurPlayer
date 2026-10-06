@@ -111,7 +111,7 @@ struct RecentsView: View {
     private func icon(for source: PlaybackSource) -> String {
         switch source {
         case .smb: return "server.rack"
-        case .documents: return "ipad.landscape"
+        case .documents: return DeviceInfo.symbol
         case .bookmark: return "folder"
         case .remote: return "globe"
         }
@@ -125,7 +125,7 @@ struct RecentsView: View {
     }
 }
 
-// MARK: - En este iPad
+// MARK: - En este dispositivo
 
 struct LocalLibraryView: View {
     @EnvironmentObject private var history: PlaybackHistory
@@ -147,7 +147,7 @@ struct LocalLibraryView: View {
 
             Section {
                 if files.isEmpty {
-                    Text("Copia videos a Archivos › En mi iPad › Murmur Player y aparecerán aquí.")
+                    Text("Copia videos a Archivos › En mi \(DeviceInfo.name) › Murmur Player y aparecerán aquí.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(files, id: \.self) { url in
@@ -162,7 +162,7 @@ struct LocalLibraryView: View {
                 Text("Documentos de la app")
             }
         }
-        .navigationTitle("En este iPad")
+        .navigationTitle("En este \(DeviceInfo.name)")
         .refreshable { reload() }
         .onAppear(perform: reload)
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.movie, .audio, .audiovisualContent, .item]) { result in
