@@ -1,0 +1,81 @@
+name: MurmurPlayer
+
+options:
+  bundleIdPrefix: com.murmur
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  # Motor de reproducción: AVPlayer (hardware) + FFmpeg/KSMEPlayer (MKV, DTS, PGS, smb://), PiP.
+  # Fijado a un commit concreto para que los builds sean reproducibles.
+  KSPlayer:
+    url: https://github.com/kingslay/KSPlayer.git
+    revision: be7f60d3b94a0941c643fe8699113cfce4f08e83
+  # Cliente SMB2/3 para navegar carpetas y bajar subtítulos.
+  AMSMB2:
+    url: https://github.com/amosavian/AMSMB2.git
+    from: 4.0.3
+
+targets:
+  MurmurPlayer:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources
+    dependencies:
+      - package: KSPlayer
+      - package: AMSMB2
+    scheme: {}
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Murmur Player
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UIRequiresFullScreen: false
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSLocalNetworkUsageDescription: Murmur Player necesita acceso a la red local para conectarse a tu NAS y reproducir tus videos.
+        NSBonjourServices: [_smb._tcp]
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Video
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.movie, public.audiovisual-content]
+          - CFBundleTypeName: Audio
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.audio]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.murmur.player
+        PRODUCT_NAME: MurmurPlayer
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        DEAD_CODE_STRIPPING: YES
+        CODE_SIGN_STYLE: Automatic
