@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum SidebarItem: Hashable {
     case recents, local, openURL, settings
@@ -19,7 +20,7 @@ struct RootView: View {
                 Section("Biblioteca") {
                     Label("Continuar viendo", systemImage: "clock.arrow.circlepath")
                         .tag(SidebarItem.recents)
-                    Label("En este iPad", systemImage: "ipad.landscape")
+                    Label("En este \(DeviceInfo.name)", systemImage: DeviceInfo.symbol)
                         .tag(SidebarItem.local)
                     Label("Abrir URL", systemImage: "link")
                         .tag(SidebarItem.openURL)
@@ -105,6 +106,13 @@ struct RootView: View {
             }
         }
     }
+}
+
+/// "iPad" o "iPhone" según el dispositivo, para que los textos no digan iPad en un iPhone.
+enum DeviceInfo {
+    static var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    static var name: String { isPad ? "iPad" : "iPhone" }
+    static var symbol: String { isPad ? "ipad.landscape" : "iphone" }
 }
 
 /// Estado vacío / error reutilizable (ContentUnavailableView solo existe desde iOS 17).

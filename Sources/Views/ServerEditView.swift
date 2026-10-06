@@ -76,7 +76,7 @@ struct ServerEditView: View {
                 } header: {
                     Text("Cuenta")
                 } footer: {
-                    Text("La contraseña se guarda en el llavero del iPad.")
+                    Text("La contraseña se guarda en el llavero del \(DeviceInfo.name).")
                 }
 
                 Section {
