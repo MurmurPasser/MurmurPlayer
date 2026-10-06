@@ -14,10 +14,20 @@ struct SMBServer: Identifiable, Codable, Hashable {
     /// Si se define, el navegador abre directamente este recurso compartido
     var defaultShare: String
 
+    /// Solo el nombre o la IP, aunque el usuario escriba "smb://usuario@nas/Videos",
+    /// `\\nas\Videos` o "nas:445".
     var cleanHost: String {
-        host.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "smb://", with: "")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        var h = host.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\", with: "/")
+        if let scheme = h.range(of: "://") { h = String(h[scheme.upperBound...]) }
+        h = h.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if let slash = h.firstIndex(of: "/") { h = String(h[..<slash]) }
+        if let at = h.lastIndex(of: "@") { h = String(h[h.index(after: at)...]) }
+        // "nas:445" → "nas" (el puerto va en su propio campo). No toca IPv6.
+        if h.filter({ $0 == ":" }).count == 1, let colon = h.firstIndex(of: ":") {
+            h = String(h[..<colon])
+        }
+        return h
     }
 
     /// URL base para AMSMB2 (sin credenciales).
