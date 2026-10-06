@@ -109,7 +109,9 @@ final class PlaybackRouter: ObservableObject {
         switch source {
         case let .smb(serverID, share, path): return "smb://\(serverID.uuidString)/\(share)/\(path)"
         case let .documents(relativePath): return "docs://\(relativePath)"
-        case let .bookmark(_, name): return "file://\(name)"
+        // Ruta completa, no solo el nombre: dos archivos homónimos en carpetas
+        // distintas no deben compartir historial.
+        case .bookmark: return "file://" + fallbackURL.standardizedFileURL.path
         case let .remote(url): return url
         }
     }
