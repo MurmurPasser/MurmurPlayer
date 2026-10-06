@@ -1,0 +1,15 @@
+# Generado por XcodeGen
+*.xcodeproj
+Sources/Info.plist
+
+# Xcode / SPM
+build/
+DerivedData/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+
+# Salida
+Payload/
+*.ipa
+.DS_Store
